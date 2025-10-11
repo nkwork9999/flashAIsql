@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Gemini Flash + DuckDB-Wasm デモ（改良版）</title>
+    <title>Gemini Flash + DuckDB-Wasm Demo (Improved)</title>
     <style>
       * {
         margin: 0;
@@ -301,29 +301,29 @@
       <div class="sidebar">
         <h1>DuckDB + Gemini</h1>
 
-        <div id="initStatus">DuckDB-WASMを初期化中...</div>
+        <div id="initStatus">Initializing DuckDB-WASM...</div>
 
         <div class="warning">
-          <strong>APIキーが必要:</strong>
+          <strong>API Key Required:</strong>
+          Get a Gemini API key from
           <a href="https://aistudio.google.com/app/apikey" target="_blank"
             >Google AI Studio</a
-          >
-          でGemini APIキーを取得
+          >.
         </div>
 
         <div class="section">
-          <h3>APIキー設定</h3>
-          <input type="password" id="apiKey" placeholder="APIキーを入力" />
-          <button onclick="saveApiKey()">保存</button>
+          <h3>API Key Settings</h3>
+          <input type="password" id="apiKey" placeholder="Enter your API key" />
+          <button onclick="saveApiKey()">Save</button>
           <span id="apiKeyStatus"></span>
         </div>
 
         <div class="section">
-          <h3>ファイル読み込み</h3>
+          <h3>File Upload</h3>
           <div class="drop-zone" id="dropZone">
             <p>📁 CSV/Parquet</p>
             <p style="font-size: 11px; color: #666">
-              ドラッグ&ドロップまたはクリック
+              Drag & drop or click to select
             </p>
           </div>
           <input
@@ -338,17 +338,15 @@
         </div>
 
         <div class="section export-section">
-          <h3>📥 エクスポート</h3>
+          <h3>📥 Export</h3>
           <select id="exportTableSelect">
-            <option value="">テーブルを選択...</option>
+            <option value="">Select a table...</option>
           </select>
           <div style="margin-top: 10px">
             <button onclick="exportToParquet()" class="export">
-              Parquet形式で保存
+              Save as Parquet
             </button>
-            <button onclick="exportToCSV()" class="export">
-              CSV形式で保存
-            </button>
+            <button onclick="exportToCSV()" class="export">Save as CSV</button>
           </div>
           <div id="exportStatus" style="margin-top: 10px"></div>
         </div>
@@ -357,47 +355,51 @@
       <div class="main-content">
         <div class="tabs">
           <div class="tab active" onclick="switchTab('analysis')">
-            📊 データ分析
+            📊 Data Analysis
           </div>
-          <div class="tab" onclick="switchTab('sql')">💻 SQLクエリ</div>
-          <div class="tab" onclick="switchTab('tables')">📋 テーブル一覧</div>
+          <div class="tab" onclick="switchTab('sql')">💻 SQL Query</div>
+          <div class="tab" onclick="switchTab('tables')">📋 Tables</div>
         </div>
 
         <div id="analysis" class="tab-content active">
-          <h2 style="margin-bottom: 20px; font-size: 18px">データ分析</h2>
+          <h2 style="margin-bottom: 20px; font-size: 18px">Data Analysis</h2>
           <div class="table-selector">
             <select id="analysisTableSelect" onchange="loadTableAnalysis()">
-              <option value="">テーブルを選択...</option>
+              <option value="">Select a table...</option>
             </select>
           </div>
           <div id="analysisContent"></div>
         </div>
 
         <div id="sql" class="tab-content">
-          <h2 style="margin-bottom: 20px; font-size: 18px">SQLクエリ実行</h2>
+          <h2 style="margin-bottom: 20px; font-size: 18px">
+            Execute SQL Query
+          </h2>
           <div style="margin-bottom: 15px">
             <input
               type="text"
               id="sqlQuery"
-              placeholder="SELECT * FROM テーブル名"
+              placeholder="SELECT * FROM table_name"
               value="SHOW TABLES"
             />
-            <button onclick="executeQuery()">実行</button>
+            <button onclick="executeQuery()">Execute</button>
             <button onclick="exportQueryResult()" class="export small">
-              結果を保存
+              Save Results
             </button>
           </div>
           <div id="queryResult" class="result" style="max-height: none"></div>
 
-          <h2 style="margin: 30px 0 20px; font-size: 18px">AI分析</h2>
+          <h2 style="margin: 30px 0 20px; font-size: 18px">AI Analysis</h2>
           <div style="margin-bottom: 15px">
             <input
               type="text"
               id="analysisQuery"
-              placeholder="分析するSQLクエリ"
+              placeholder="SQL query to analyze"
               value="SHOW TABLES"
             />
-            <button onclick="analyzeSQLWithGemini()">データ取得→AI分析</button>
+            <button onclick="analyzeSQLWithGemini()">
+              Fetch Data & Analyze with AI
+            </button>
           </div>
           <div
             id="integrationResult"
@@ -407,10 +409,8 @@
         </div>
 
         <div id="tables" class="tab-content">
-          <h2 style="margin-bottom: 20px; font-size: 18px">
-            読み込み済みテーブル
-          </h2>
-          <button onclick="refreshTableList()" class="small">🔄 更新</button>
+          <h2 style="margin-bottom: 20px; font-size: 18px">Loaded Tables</h2>
+          <button onclick="refreshTableList()" class="small">🔄 Refresh</button>
           <div id="tableListContent"></div>
         </div>
       </div>
@@ -446,11 +446,11 @@
         }
 
         try {
-          updateInitStatus("DuckDB-WASMモジュールを読み込み中...");
+          updateInitStatus("Loading DuckDB-WASM module...");
 
           const bundle = await duckdb.selectBundle(duckdb.getJsDelivrBundles());
 
-          updateInitStatus("Workerを作成中...");
+          updateInitStatus("Creating Worker...");
 
           const worker = new Worker(
             URL.createObjectURL(
@@ -460,7 +460,7 @@
             )
           );
 
-          updateInitStatus("DuckDBインスタンスを作成中...");
+          updateInitStatus("Creating DuckDB instance...");
 
           db = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger(), worker);
           await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
@@ -472,12 +472,16 @@
           window.conn = conn;
 
           console.log("DuckDB initialization completed successfully");
-          updateInitStatus("✅ DuckDB-WASM初期化完了！", true);
+          updateInitStatus("✅ DuckDB-WASM initialized successfully!", true);
 
           return true;
         } catch (error) {
           console.error("DuckDB initialization error:", error);
-          updateInitStatus(`❌ 初期化エラー: ${error.message}`, false, true);
+          updateInitStatus(
+            `❌ Initialization Error: ${error.message}`,
+            false,
+            true
+          );
           throw error;
         }
       }
@@ -488,13 +492,13 @@
 
         if (!tableName) {
           statusDiv.innerHTML =
-            '<span class="error">テーブルを選択してください</span>';
+            '<span class="error">Please select a table</span>';
           return;
         }
 
         try {
           statusDiv.innerHTML =
-            '<span class="loading">Parquetファイルを生成中...</span>';
+            '<span class="loading">Generating Parquet file...</span>';
 
           const outputFile = `${tableName}.parquet`;
           await conn.query(
@@ -513,12 +517,12 @@
           document.body.removeChild(a);
 
           statusDiv.innerHTML =
-            '<span class="success">✅ Parquetファイルを保存しました</span>';
+            '<span class="success">✅ Parquet file saved successfully</span>';
           setTimeout(() => {
             statusDiv.innerHTML = "";
           }, 3000);
         } catch (error) {
-          statusDiv.innerHTML = `<span class="error">エラー: ${error.message}</span>`;
+          statusDiv.innerHTML = `<span class="error">Error: ${error.message}</span>`;
         }
       };
 
@@ -528,13 +532,13 @@
 
         if (!tableName) {
           statusDiv.innerHTML =
-            '<span class="error">テーブルを選択してください</span>';
+            '<span class="error">Please select a table</span>';
           return;
         }
 
         try {
           statusDiv.innerHTML =
-            '<span class="loading">CSVファイルを生成中...</span>';
+            '<span class="loading">Generating CSV file...</span>';
 
           const outputFile = `${tableName}.csv`;
           await conn.query(
@@ -553,18 +557,18 @@
           document.body.removeChild(a);
 
           statusDiv.innerHTML =
-            '<span class="success">✅ CSVファイルを保存しました</span>';
+            '<span class="success">✅ CSV file saved successfully</span>';
           setTimeout(() => {
             statusDiv.innerHTML = "";
           }, 3000);
         } catch (error) {
-          statusDiv.innerHTML = `<span class="error">エラー: ${error.message}</span>`;
+          statusDiv.innerHTML = `<span class="error">Error: ${error.message}</span>`;
         }
       };
 
       window.exportQueryResult = async function () {
         if (!lastQueryResult) {
-          alert("まずクエリを実行してください");
+          alert("Please execute a query first");
           return;
         }
 
@@ -593,7 +597,7 @@
 
           await conn.query("DROP TABLE temp_export");
         } catch (error) {
-          alert(`エクスポートエラー: ${error.message}`);
+          alert(`Export error: ${error.message}`);
         }
       };
 
@@ -604,13 +608,13 @@
         if (key) {
           apiKey = key;
           localStorage.setItem("gemini_api_key", key);
-          statusSpan.innerHTML = '<span class="success"> ✅ 保存済み</span>';
+          statusSpan.innerHTML = '<span class="success"> ✅ Saved</span>';
           setTimeout(() => {
             statusSpan.innerHTML = "";
           }, 3000);
         } else {
           statusSpan.innerHTML =
-            '<span class="error"> ❌ キーを入力してください</span>';
+            '<span class="error"> ❌ Please enter a key</span>';
         }
       };
 
@@ -672,7 +676,7 @@
         const resultDiv = document.getElementById("loadResult");
         const fileListDiv = document.getElementById("fileList");
 
-        resultDiv.innerHTML = '<p class="loading">ファイル読み込み中...</p>';
+        resultDiv.innerHTML = '<p class="loading">Loading file(s)...</p>';
         fileListDiv.style.display = "block";
         fileListDiv.innerHTML = "";
 
@@ -689,7 +693,7 @@
             const fileExt = fileName.split(".").pop().toLowerCase();
 
             if (!["csv", "parquet"].includes(fileExt)) {
-              fileListDiv.innerHTML += `<div class="file-item" style="border-color: #d9534f;">❌ ${fileName}: 非対応形式</div>`;
+              fileListDiv.innerHTML += `<div class="file-item" style="border-color: #d9534f;">❌ ${fileName}: Unsupported format</div>`;
               errorCount++;
               continue;
             }
@@ -730,7 +734,7 @@
 
               fileListDiv.innerHTML += `
                 <div class="file-item">
-                  <span>✅ ${fileName} → <strong>${tableName}</strong> (${recordCount}件)</span>
+                  <span>✅ ${fileName} → <strong>${tableName}</strong> (${recordCount} records)</span>
                   <div>
                     <button onclick="quickExport('${tableName}', 'parquet')" class="small export">Parquet</button>
                     <button onclick="quickExport('${tableName}', 'csv')" class="small export">CSV</button>
@@ -746,17 +750,17 @@
 
           let summaryMessage = "";
           if (successCount > 0 && errorCount === 0) {
-            summaryMessage = `<p class="success">✅ 全${successCount}ファイルの読み込みに成功しました</p>`;
+            summaryMessage = `<p class="success">✅ Successfully loaded all ${successCount} files</p>`;
           } else if (successCount > 0 && errorCount > 0) {
-            summaryMessage = `<p class="info">⚠️ ${successCount}ファイル成功、${errorCount}ファイル失敗</p>`;
+            summaryMessage = `<p class="info">⚠️ ${successCount} succeeded, ${errorCount} failed</p>`;
           } else {
-            summaryMessage = `<p class="error">❌ ファイルの読み込みに失敗しました</p>`;
+            summaryMessage = `<p class="error">❌ Failed to load files</p>`;
           }
 
           resultDiv.innerHTML = summaryMessage;
           updateTableSelectors();
         } catch (error) {
-          resultDiv.innerHTML = `<p style="color:red;">エラー: ${error.message}</p>`;
+          resultDiv.innerHTML = `<p style="color:red;">Error: ${error.message}</p>`;
           console.error("File handling error:", error);
         }
       }
@@ -789,7 +793,7 @@
           document.body.appendChild(a).click();
           document.body.removeChild(a);
         } catch (error) {
-          alert(`エクスポートエラー: ${error.message}`);
+          alert(`Export error: ${error.message}`);
         }
       };
 
@@ -805,7 +809,7 @@
             if (!select) return;
 
             const currentValue = select.value;
-            select.innerHTML = '<option value="">テーブルを選択...</option>';
+            select.innerHTML = '<option value="">Select a table...</option>';
 
             tables.forEach((row) => {
               const tableName = row.name;
@@ -828,11 +832,11 @@
         const contentDiv = document.getElementById("analysisContent");
 
         if (!tableName) {
-          contentDiv.innerHTML = "<p>テーブルを選択してください</p>";
+          contentDiv.innerHTML = "<p>Please select a table</p>";
           return;
         }
 
-        contentDiv.innerHTML = '<p class="loading">分析中...</p>';
+        contentDiv.innerHTML = '<p class="loading">Analyzing...</p>';
 
         try {
           const countResult = await conn.query(
@@ -843,30 +847,30 @@
           const schemaResult = await conn.query(`DESCRIBE ${tableName}`);
           const columns = schemaResult.toArray();
 
-          // 基本統計
+          // Basic Stats
           let html = `<div class="stat-grid">`;
-          html += `<div class="stat-card"><h4>総行数</h4><div class="value">${rowCount.toLocaleString()}</div></div>`;
-          html += `<div class="stat-card"><h4>総列数</h4><div class="value">${columns.length}</div></div>`;
+          html += `<div class="stat-card"><h4>Total Rows</h4><div class="value">${rowCount.toLocaleString()}</div></div>`;
+          html += `<div class="stat-card"><h4>Total Columns</h4><div class="value">${columns.length}</div></div>`;
           html += `</div>`;
 
-          // 列分析テーブル
-          html += `<h3 style="margin-top: 25px; margin-bottom: 15px;">列詳細分析</h3>`;
+          // Column Analysis Table
+          html += `<h3 style="margin-top: 25px; margin-bottom: 15px;">Column Details</h3>`;
           html += `<div style="overflow-x: auto;">`;
           html += `<table style="width: 100%; min-width: 1400px;">`;
           html += `<thead><tr>`;
-          html += `<th style="width: 10%;">列名</th>`;
-          html += `<th style="width: 7%;">データ型</th>`;
-          html += `<th style="width: 6%;">行数</th>`;
-          html += `<th style="width: 6%;">NULL数</th>`;
-          html += `<th style="width: 6%;">NULL率</th>`;
-          html += `<th style="width: 6%;">空文字数</th>`;
-          html += `<th style="width: 6%;">NA数</th>`;
-          html += `<th style="width: 7%;">ユニーク値</th>`;
-          html += `<th style="width: 7%;">最小値</th>`;
-          html += `<th style="width: 7%;">最大値</th>`;
-          html += `<th style="width: 7%;">平均値</th>`;
-          html += `<th style="width: 7%;">標準偏差</th>`;
-          html += `<th style="width: 14%;">その他統計</th>`;
+          html += `<th style="width: 10%;">Column Name</th>`;
+          html += `<th style="width: 7%;">Data Type</th>`;
+          html += `<th style="width: 6%;">Rows</th>`;
+          html += `<th style="width: 6%;">Nulls</th>`;
+          html += `<th style="width: 6%;">Null %</th>`;
+          html += `<th style="width: 6%;">Empty Strings</th>`;
+          html += `<th style="width: 6%;">N/A Count</th>`;
+          html += `<th style="width: 7%;">Unique Values</th>`;
+          html += `<th style="width: 7%;">Min</th>`;
+          html += `<th style="width: 7%;">Max</th>`;
+          html += `<th style="width: 7%;">Avg</th>`;
+          html += `<th style="width: 7%;">Std Dev</th>`;
+          html += `<th style="width: 14%;">Other Stats</th>`;
           html += `</tr></thead>`;
           html += `<tbody>`;
 
@@ -874,7 +878,7 @@
             const colName = col.column_name;
             const colType = col.column_type;
 
-            // NULL値の統計
+            // Null count
             const nullCountResult = await conn.query(
               `SELECT COUNT(*) as null_count FROM ${tableName} WHERE "${colName}" IS NULL`
             );
@@ -882,7 +886,7 @@
             const nullPercent =
               rowCount > 0 ? ((nullCount / rowCount) * 100).toFixed(1) : "0";
 
-            // 空文字の統計
+            // Empty string count
             let emptyStringCount = 0;
             if (
               colType.includes("VARCHAR") ||
@@ -902,7 +906,7 @@
               }
             }
 
-            // NA値の統計
+            // NA count
             let naCount = 0;
             try {
               const naResult = await conn.query(
@@ -913,13 +917,13 @@
               console.error(`Error counting NA values for ${colName}:`, e);
             }
 
-            // ユニーク値の数
+            // Unique value count
             const uniqueResult = await conn.query(
               `SELECT COUNT(DISTINCT "${colName}") as unique_count FROM ${tableName}`
             );
             const uniqueCount = Number(uniqueResult.toArray()[0].unique_count);
 
-            // 行の開始
+            // Start row
             html += `<tr>`;
             html += `<td><strong>${colName}</strong></td>`;
             html += `<td style="font-size: 11px;">${colType}</td>`;
@@ -930,7 +934,7 @@
             html += `<td>${naCount.toLocaleString()}</td>`;
             html += `<td>${uniqueCount.toLocaleString()}</td>`;
 
-            // データ型に応じた統計情報（最小値、最大値、平均値、標準偏差、その他）
+            // Type-specific stats (min, max, avg, stddev, other)
             let minVal = "-";
             let maxVal = "-";
             let avgVal = "-";
@@ -942,7 +946,7 @@
               colType.includes("TEXT") ||
               colType.includes("STRING")
             ) {
-              // 文字列型
+              // String type
               try {
                 const lengthResult = await conn.query(
                   `SELECT 
@@ -953,9 +957,9 @@
                 );
                 const lenStats = lengthResult.toArray()[0];
 
-                minVal = `${lenStats?.min_len || 0}文字`;
-                maxVal = `${lenStats?.max_len || 0}文字`;
-                avgVal = `${lenStats?.avg_len || 0}文字`;
+                minVal = `${lenStats?.min_len || 0} chars`;
+                maxVal = `${lenStats?.max_len || 0} chars`;
+                avgVal = `${lenStats?.avg_len || 0} chars`;
 
                 const whitespaceResult = await conn.query(
                   `SELECT COUNT(*) as ws_count FROM ${tableName} WHERE "${colName}" != TRIM("${colName}")`
@@ -965,10 +969,10 @@
                 );
 
                 if (whitespaceCount > 0) {
-                  otherStats = `空白あり: ${whitespaceCount}件`;
+                  otherStats = `Has Whitespace: ${whitespaceCount}`;
                 }
               } catch (e) {
-                otherStats = "統計取得不可";
+                otherStats = "Stats N/A";
               }
             } else if (
               colType.includes("INTEGER") ||
@@ -978,7 +982,7 @@
               colType.includes("BIGINT") ||
               colType.includes("NUMERIC")
             ) {
-              // 数値型
+              // Numeric type
               try {
                 const statsResult = await conn.query(
                   `SELECT 
@@ -997,13 +1001,13 @@
                   stdVal = stats.std_val !== null ? stats.std_val : "-";
                 }
               } catch (e) {
-                otherStats = "統計取得不可";
+                otherStats = "Stats N/A";
               }
             } else if (
               colType.includes("DATE") ||
               colType.includes("TIMESTAMP")
             ) {
-              // 日付型
+              // Date type
               try {
                 const dateResult = await conn.query(
                   `SELECT 
@@ -1017,13 +1021,13 @@
                 if (dateStats && dateStats.min_date) {
                   minVal = dateStats.min_date;
                   maxVal = dateStats.max_date;
-                  otherStats = `ユニーク日数: ${dateStats.unique_dates}`;
+                  otherStats = `Unique Days: ${dateStats.unique_dates}`;
                 }
               } catch (e) {
-                otherStats = "統計取得不可";
+                otherStats = "Stats N/A";
               }
             } else if (colType.includes("BOOLEAN")) {
-              // ブール型
+              // Boolean type
               try {
                 const boolResult = await conn.query(
                   `SELECT 
@@ -1043,7 +1047,7 @@
                   100
                 ).toFixed(1)}%)`;
               } catch (e) {
-                otherStats = "統計取得不可";
+                otherStats = "Stats N/A";
               }
             }
 
@@ -1059,8 +1063,8 @@
           html += `</table>`;
           html += `</div>`;
 
-          // サンプルデータの表示
-          html += `<h3 style="margin-top: 30px; margin-bottom: 15px;">サンプルデータ</h3>`;
+          // Sample Data
+          html += `<h3 style="margin-top: 30px; margin-bottom: 15px;">Sample Data</h3>`;
           html += `<div style="overflow-x: auto;">`;
 
           try {
@@ -1098,14 +1102,14 @@
               html += `</tbody></table>`;
             }
           } catch (e) {
-            html += `<p style="color: #999;">サンプルデータを取得できませんでした</p>`;
+            html += `<p style="color: #999;">Could not retrieve sample data</p>`;
           }
 
           html += `</div>`;
 
           contentDiv.innerHTML = html;
         } catch (error) {
-          contentDiv.innerHTML = `<p style="color:red;">エラー: ${error.message}</p>`;
+          contentDiv.innerHTML = `<p style="color:red;">Error: ${error.message}</p>`;
           console.error("Table analysis error:", error);
         }
       };
@@ -1116,12 +1120,12 @@
       window.executeQuery = async function () {
         const query = document.getElementById("sqlQuery").value.trim();
         if (!query) {
-          alert("クエリを入力してください");
+          alert("Please enter a query");
           return;
         }
 
         const resultDiv = document.getElementById("queryResult");
-        resultDiv.innerHTML = '<p class="loading">クエリ実行中...</p>';
+        resultDiv.innerHTML = '<p class="loading">Executing query...</p>';
 
         try {
           if (!db || !conn) {
@@ -1133,7 +1137,7 @@
           lastQueryResult = result;
           displayTable(result, resultDiv);
         } catch (error) {
-          resultDiv.innerHTML = `<p style="color:red;">エラー: ${error.message}</p>`;
+          resultDiv.innerHTML = `<p style="color:red;">Error: ${error.message}</p>`;
         }
       };
 
@@ -1147,12 +1151,12 @@
           }
 
           if (rows.length === 0) {
-            container.innerHTML = "<p>データがありません</p>";
+            container.innerHTML = "<p>No data to display</p>";
             return;
           }
 
           const columns = Object.keys(rows[0]);
-          let html = `<p class="info">取得件数: ${rows.length}件</p>`;
+          let html = `<p class="info">Fetched: ${rows.length} rows</p>`;
           html += "<table><thead><tr>";
           columns.forEach((col) => {
             html += `<th>${col}</th>`;
@@ -1171,12 +1175,12 @@
           html += "</tbody></table>";
 
           if (rows.length > 100) {
-            html += `<p style="color: #666; font-size: 12px; margin-top: 10px;">（全${rows.length}件中、最初の100件を表示）</p>`;
+            html += `<p style="color: #666; font-size: 12px; margin-top: 10px;">(Showing the first 100 of ${rows.length} total rows)</p>`;
           }
 
           container.innerHTML = html;
         } catch (error) {
-          container.innerHTML = `<p style="color:red;">表示エラー: ${error.message}</p>`;
+          container.innerHTML = `<p style="color:red;">Display Error: ${error.message}</p>`;
         }
       }
 
@@ -1206,7 +1210,7 @@
 
       async function callGemini(prompt) {
         if (!apiKey) {
-          throw new Error("APIキーが設定されていません");
+          throw new Error("API key is not set");
         }
 
         const response = await fetch(
@@ -1236,7 +1240,7 @@
 
         if (!response.ok) {
           const error = await response.json();
-          throw new Error(error.error?.message || "API呼び出しエラー");
+          throw new Error(error.error?.message || "API call error");
         }
 
         const data = await response.json();
@@ -1276,7 +1280,7 @@
       window.analyzeSQLWithGemini = async function () {
         const query = document.getElementById("analysisQuery").value;
         const resultDiv = document.getElementById("integrationResult");
-        resultDiv.innerHTML = '<p class="loading">データ取得中...</p>';
+        resultDiv.innerHTML = '<p class="loading">Fetching data...</p>';
 
         try {
           if (!db || !conn) {
@@ -1287,47 +1291,48 @@
           const rawData = result.toArray();
 
           if (rawData.length === 0) {
-            resultDiv.innerHTML = "<p>クエリ結果が空です</p>";
+            resultDiv.innerHTML = "<p>Query returned no results</p>";
             return;
           }
 
           const data = convertDuckDBData(rawData);
 
-          resultDiv.innerHTML = '<p class="loading">Geminiで分析中...</p>';
+          resultDiv.innerHTML =
+            '<p class="loading">Analyzing with Gemini...</p>';
 
           const sampleData = data.length > 50 ? data.slice(0, 50) : data;
           const isSampled = data.length > 50;
 
-          const prompt = `以下のデータを分析して、重要な洞察を3つ提供してください。
+          const prompt = `Analyze the following data and provide three key insights.
           ${
             isSampled
-              ? `（注：全${data.length}件中の最初の50件のサンプル）`
+              ? `(Note: This is a sample of the first 50 out of ${data.length} total records)`
               : ""
           }
           
-          データ:\n${JSON.stringify(sampleData, null, 2)}
+          Data:\n${JSON.stringify(sampleData, null, 2)}
           
-          回答は日本語で、簡潔にお願いします。`;
+          Please provide a concise answer in English.`;
 
           const analysis = await callGemini(prompt);
 
           resultDiv.innerHTML = `
-            <h4>📊 取得データ (${data.length}件${
-            isSampled ? " - サンプル表示" : ""
+            <h4>📊 Fetched Data (${data.length} rows${
+            isSampled ? " - Sampled" : ""
           })</h4>
             <pre>${JSON.stringify(sampleData, null, 2)}</pre>
-            <h4>🤖 Geminiの分析結果</h4>
+            <h4>🤖 Gemini's Analysis</h4>
             <div>${analysis.replace(/\n/g, "<br>")}</div>
           `;
         } catch (error) {
-          resultDiv.innerHTML = `<p style="color:red;">エラー: ${error.message}</p>`;
+          resultDiv.innerHTML = `<p style="color:red;">Error: ${error.message}</p>`;
           console.error("Analysis error:", error);
         }
       };
 
       window.refreshTableList = async function () {
         const contentDiv = document.getElementById("tableListContent");
-        contentDiv.innerHTML = '<p class="loading">読み込み中...</p>';
+        contentDiv.innerHTML = '<p class="loading">Loading...</p>';
 
         try {
           if (!db || !conn) {
@@ -1339,7 +1344,7 @@
 
           if (tables.length === 0) {
             contentDiv.innerHTML =
-              "<p>テーブルがありません。ファイルを読み込んでください。</p>";
+              "<p>No tables found. Please upload a file.</p>";
             return;
           }
 
@@ -1358,7 +1363,7 @@
 
             html += `<div class="stat-card">`;
             html += `<h4>${tableName}</h4>`;
-            html += `<div class="column-detail">${rowCount.toLocaleString()} 行 × ${colCount} 列</div>`;
+            html += `<div class="column-detail">${rowCount.toLocaleString()} rows × ${colCount} columns</div>`;
             html += `<div style="margin-top: 10px;">`;
             html += `<button onclick="quickExport('${tableName}', 'parquet')" class="small export">Parquet</button>`;
             html += `<button onclick="quickExport('${tableName}', 'csv')" class="small export">CSV</button>`;
@@ -1369,7 +1374,7 @@
           html += `</div>`;
           contentDiv.innerHTML = html;
         } catch (error) {
-          contentDiv.innerHTML = `<p style="color:red;">エラー: ${error.message}</p>`;
+          contentDiv.innerHTML = `<p style="color:red;">Error: ${error.message}</p>`;
           console.error("Table list error:", error);
         }
       };
