@@ -3,45 +3,66 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Gemini Flash + DuckDB-Wasm デモ</title>
+    <title>Gemini Flash + DuckDB-Wasm デモ（改良版）</title>
     <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
       body {
         font-family: Arial, sans-serif;
-        max-width: 800px;
-        margin: 30px auto;
-        padding: 20px;
         background: #f5f5f5;
         color: #333;
       }
       .container {
+        display: flex;
+        height: 100vh;
+      }
+      .sidebar {
+        width: 300px;
         background: white;
+        border-right: 1px solid #ddd;
         padding: 20px;
-        border: 1px solid #ddd;
+        overflow-y: auto;
+      }
+      .main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
       }
       h1 {
         color: #333;
         margin-bottom: 20px;
-        font-size: 24px;
+        font-size: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #555;
       }
       .section {
         margin: 20px 0;
         padding: 15px;
         background: #fafafa;
         border: 1px solid #e0e0e0;
+        border-radius: 4px;
       }
       h3 {
         margin-top: 0;
-        font-size: 16px;
+        margin-bottom: 12px;
+        font-size: 14px;
         color: #555;
+        font-weight: 600;
       }
       button {
         background: #555;
         color: white;
         border: none;
-        padding: 10px 20px;
+        padding: 8px 16px;
         cursor: pointer;
-        font-size: 14px;
+        font-size: 13px;
         margin: 5px 5px 5px 0;
+        border-radius: 3px;
+        transition: background 0.2s;
       }
       button:hover {
         background: #333;
@@ -50,14 +71,30 @@
         background: #ccc;
         cursor: not-allowed;
       }
+      button.danger {
+        background: #d9534f;
+      }
+      button.danger:hover {
+        background: #c9302c;
+      }
+      button.small {
+        padding: 5px 10px;
+        font-size: 12px;
+      }
+      button.export {
+        background: #28a745;
+      }
+      button.export:hover {
+        background: #218838;
+      }
       input[type="text"],
       input[type="password"] {
         width: 100%;
         padding: 8px;
         border: 1px solid #ccc;
-        font-size: 14px;
+        font-size: 13px;
         margin: 8px 0;
-        box-sizing: border-box;
+        border-radius: 3px;
       }
       input[type="text"]:focus,
       input[type="password"]:focus {
@@ -70,10 +107,11 @@
         margin-top: 10px;
         white-space: pre-wrap;
         font-family: monospace;
-        font-size: 13px;
+        font-size: 12px;
         max-height: 300px;
         overflow-y: auto;
         border: 1px solid #ddd;
+        border-radius: 3px;
       }
       .loading {
         color: #666;
@@ -83,6 +121,7 @@
         width: 100%;
         border-collapse: collapse;
         margin-top: 10px;
+        font-size: 13px;
       }
       th,
       td {
@@ -100,195 +139,1078 @@
       }
       .warning {
         background: #fffbf0;
-        padding: 12px;
+        padding: 10px;
         margin: 15px 0;
         border-left: 3px solid #f90;
+        font-size: 13px;
+        border-radius: 3px;
+      }
+      .drop-zone {
+        border: 2px dashed #ccc;
+        border-radius: 4px;
+        padding: 30px;
+        text-align: center;
+        background: white;
+        margin: 10px 0;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+      .drop-zone:hover {
+        border-color: #555;
+        background: #fafafa;
+      }
+      .drop-zone.drag-over {
+        border-color: #555;
+        background: #e8f4f8;
+      }
+      .file-list {
+        margin-top: 10px;
+        padding: 10px;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 3px;
+        max-height: 200px;
+        overflow-y: auto;
+      }
+      .file-item {
+        padding: 6px;
+        margin: 3px 0;
+        background: #f9f9f9;
+        border-left: 3px solid #555;
+        font-size: 12px;
+        border-radius: 2px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .file-item button {
+        padding: 3px 8px;
+        font-size: 11px;
+        margin: 0 2px;
+      }
+      .success {
+        color: #5cb85c;
+      }
+      .info {
+        color: #5bc0de;
+      }
+      .error {
+        color: #d9534f;
+      }
+      .tabs {
+        display: flex;
+        background: white;
+        border-bottom: 2px solid #ddd;
+        padding: 0 20px;
+      }
+      .tab {
+        padding: 15px 25px;
+        cursor: pointer;
+        border-bottom: 3px solid transparent;
         font-size: 14px;
+        color: #666;
+        transition: all 0.2s;
+      }
+      .tab:hover {
+        background: #f9f9f9;
+        color: #333;
+      }
+      .tab.active {
+        color: #333;
+        border-bottom-color: #555;
+        font-weight: 600;
+      }
+      .tab-content {
+        display: none;
+        padding: 20px;
+        overflow-y: auto;
+        flex: 1;
+        background: white;
+      }
+      .tab-content.active {
+        display: block;
+      }
+      #initStatus {
+        padding: 8px 12px;
+        margin: 10px 0;
+        background: #fffbf0;
+        border-left: 3px solid #f90;
+        font-size: 12px;
+        border-radius: 3px;
+      }
+      .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin: 15px 0;
+      }
+      .stat-card {
+        background: #fafafa;
+        padding: 15px;
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+      }
+      .stat-card h4 {
+        font-size: 13px;
+        color: #666;
+        margin-bottom: 8px;
+      }
+      .stat-card .value {
+        font-size: 24px;
+        font-weight: bold;
+        color: #333;
+      }
+      .column-info {
+        background: #fafafa;
+        padding: 12px;
+        margin: 8px 0;
+        border-left: 3px solid #555;
+        border-radius: 3px;
+      }
+      .column-info h4 {
+        font-size: 13px;
+        margin-bottom: 8px;
+        color: #333;
+      }
+      .column-detail {
+        font-size: 12px;
+        color: #666;
+        margin: 4px 0;
+      }
+      .table-selector {
+        margin-bottom: 15px;
+      }
+      .table-selector select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        font-size: 13px;
+      }
+      .export-section {
+        margin-top: 15px;
+        padding: 10px;
+        background: #e8f5e9;
+        border: 1px solid #4caf50;
+        border-radius: 4px;
       }
     </style>
   </head>
   <body>
     <div class="container">
-      <h1>Gemini Flash + DuckDB-Wasm</h1>
+      <div class="sidebar">
+        <h1>DuckDB + Gemini</h1>
 
-      <div class="warning">
-        <strong>APIキーが必要:</strong>
-        <a href="https://aistudio.google.com/app/apikey" target="_blank"
-          >Google AI Studio</a
-        >
-        でGemini APIキーを取得してください
+        <div id="initStatus">DuckDB-WASMを初期化中...</div>
+
+        <div class="warning">
+          <strong>APIキーが必要:</strong>
+          <a href="https://aistudio.google.com/app/apikey" target="_blank"
+            >Google AI Studio</a
+          >
+          でGemini APIキーを取得
+        </div>
+
+        <div class="section">
+          <h3>APIキー設定</h3>
+          <input type="password" id="apiKey" placeholder="APIキーを入力" />
+          <button onclick="saveApiKey()">保存</button>
+          <span id="apiKeyStatus"></span>
+        </div>
+
+        <div class="section">
+          <h3>ファイル読み込み</h3>
+          <div class="drop-zone" id="dropZone">
+            <p>📁 CSV/Parquet</p>
+            <p style="font-size: 11px; color: #666">
+              ドラッグ&ドロップまたはクリック
+            </p>
+          </div>
+          <input
+            type="file"
+            id="fileInput"
+            multiple
+            accept=".csv,.parquet"
+            style="display: none"
+          />
+          <div id="fileList" class="file-list" style="display: none"></div>
+          <div id="loadResult" class="result" style="max-height: 150px"></div>
+        </div>
+
+        <div class="section export-section">
+          <h3>📥 エクスポート</h3>
+          <select id="exportTableSelect">
+            <option value="">テーブルを選択...</option>
+          </select>
+          <div style="margin-top: 10px">
+            <button onclick="exportToParquet()" class="export">
+              Parquet形式で保存
+            </button>
+            <button onclick="exportToCSV()" class="export">
+              CSV形式で保存
+            </button>
+          </div>
+          <div id="exportStatus" style="margin-top: 10px"></div>
+        </div>
       </div>
 
-      <div class="section">
-        <h3>1. Gemini APIキー設定</h3>
-        <input type="password" id="apiKey" placeholder="APIキーを入力" />
-        <button onclick="saveApiKey()">保存</button>
-      </div>
+      <div class="main-content">
+        <div class="tabs">
+          <div class="tab active" onclick="switchTab('analysis')">
+            📊 データ分析
+          </div>
+          <div class="tab" onclick="switchTab('sql')">💻 SQLクエリ</div>
+          <div class="tab" onclick="switchTab('tables')">📋 テーブル一覧</div>
+        </div>
 
-      <div class="section">
-        <h3>2. DuckDB: サンプルデータ作成</h3>
-        <button onclick="createSampleData()">データ作成</button>
-        <div id="duckdbResult" class="result"></div>
-      </div>
+        <div id="analysis" class="tab-content active">
+          <h2 style="margin-bottom: 20px; font-size: 18px">データ分析</h2>
+          <div class="table-selector">
+            <select id="analysisTableSelect" onchange="loadTableAnalysis()">
+              <option value="">テーブルを選択...</option>
+            </select>
+          </div>
+          <div id="analysisContent"></div>
+        </div>
 
-      <div class="section">
-        <h3>3. DuckDB: SQLクエリ実行</h3>
-        <input
-          type="text"
-          id="sqlQuery"
-          placeholder="SELECT * FROM products"
-          value="SELECT * FROM products"
-        />
-        <button onclick="executeQuery()">実行</button>
-        <div id="queryResult" class="result"></div>
-      </div>
+        <div id="sql" class="tab-content">
+          <h2 style="margin-bottom: 20px; font-size: 18px">SQLクエリ実行</h2>
+          <div style="margin-bottom: 15px">
+            <input
+              type="text"
+              id="sqlQuery"
+              placeholder="SELECT * FROM テーブル名"
+              value="SHOW TABLES"
+            />
+            <button onclick="executeQuery()">実行</button>
+            <button onclick="exportQueryResult()" class="export small">
+              結果を保存
+            </button>
+          </div>
+          <div id="queryResult" class="result" style="max-height: none"></div>
 
-      <div class="section">
-        <h3>4. Gemini: データ分析</h3>
-        <button onclick="analyzeWithGemini()">分析実行</button>
-        <div id="geminiResult" class="result"></div>
-      </div>
+          <h2 style="margin: 30px 0 20px; font-size: 18px">AI分析</h2>
+          <div style="margin-bottom: 15px">
+            <input
+              type="text"
+              id="analysisQuery"
+              placeholder="分析するSQLクエリ"
+              value="SHOW TABLES"
+            />
+            <button onclick="analyzeSQLWithGemini()">データ取得→AI分析</button>
+          </div>
+          <div
+            id="integrationResult"
+            class="result"
+            style="max-height: none"
+          ></div>
+        </div>
 
-      <div class="section">
-        <h3>5. 統合: SQLデータをGeminiで要約</h3>
-        <button onclick="analyzeSQLWithGemini()">データ取得→AI分析</button>
-        <div id="integrationResult" class="result"></div>
+        <div id="tables" class="tab-content">
+          <h2 style="margin-bottom: 20px; font-size: 18px">
+            読み込み済みテーブル
+          </h2>
+          <button onclick="refreshTableList()" class="small">🔄 更新</button>
+          <div id="tableListContent"></div>
+        </div>
       </div>
     </div>
 
     <script type="module">
-      import * as duckdb from "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.0/+esm";
+      import * as duckdb from "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm/+esm";
 
-      let db;
-      let conn;
+      let db = null;
+      let conn = null;
       let apiKey = "";
+      const loadedFiles = new Set();
+      let lastQueryResult = null;
 
-      // DuckDB初期化（修正版）
+      function updateInitStatus(message, isSuccess = false, isError = false) {
+        const statusDiv = document.getElementById("initStatus");
+        if (isSuccess) {
+          statusDiv.style.background = "#d4edda";
+          statusDiv.style.borderLeftColor = "#28a745";
+          statusDiv.style.color = "#155724";
+        } else if (isError) {
+          statusDiv.style.background = "#f8d7da";
+          statusDiv.style.borderLeftColor = "#dc3545";
+          statusDiv.style.color = "#721c24";
+        }
+        statusDiv.textContent = message;
+      }
+
       async function initDuckDB() {
-        if (db) return;
+        if (db && conn) {
+          console.log("DuckDB already initialized");
+          return;
+        }
 
         try {
-          const JSDELIVR_BUNDLES = duckdb.getJsDelivrBundles();
-          const bundle = await duckdb.selectBundle(JSDELIVR_BUNDLES);
+          updateInitStatus("DuckDB-WASMモジュールを読み込み中...");
 
-          const worker_url = URL.createObjectURL(
-            new Blob([`importScripts("${bundle.mainWorker}");`], {
-              type: "text/javascript",
-            })
+          const bundle = await duckdb.selectBundle(duckdb.getJsDelivrBundles());
+
+          updateInitStatus("Workerを作成中...");
+
+          const worker = new Worker(
+            URL.createObjectURL(
+              new Blob([`importScripts("${bundle.mainWorker}");`], {
+                type: "text/javascript",
+              })
+            )
           );
 
-          const worker = new Worker(worker_url);
-          const logger = new duckdb.ConsoleLogger();
-          db = new duckdb.AsyncDuckDB(logger, worker);
+          updateInitStatus("DuckDBインスタンスを作成中...");
+
+          db = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger(), worker);
           await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+
           conn = await db.connect();
 
-          console.log("DuckDB初期化完了");
+          window.duckdb = duckdb;
+          window.db = db;
+          window.conn = conn;
+
+          console.log("DuckDB initialization completed successfully");
+          updateInitStatus("✅ DuckDB-WASM初期化完了！", true);
+
+          return true;
         } catch (error) {
-          console.error("DuckDB初期化エラー:", error);
+          console.error("DuckDB initialization error:", error);
+          updateInitStatus(`❌ 初期化エラー: ${error.message}`, false, true);
           throw error;
         }
       }
 
-      // APIキー保存
-      window.saveApiKey = function () {
-        const key = document.getElementById("apiKey").value.trim();
-        if (key) {
-          apiKey = key;
-          alert("APIキーを保存しました!");
-        } else {
-          alert("APIキーを入力してください");
+      window.exportToParquet = async function () {
+        const tableName = document.getElementById("exportTableSelect").value;
+        const statusDiv = document.getElementById("exportStatus");
+
+        if (!tableName) {
+          statusDiv.innerHTML =
+            '<span class="error">テーブルを選択してください</span>';
+          return;
+        }
+
+        try {
+          statusDiv.innerHTML =
+            '<span class="loading">Parquetファイルを生成中...</span>';
+
+          const outputFile = `${tableName}.parquet`;
+          await conn.query(
+            `COPY (SELECT * FROM ${tableName}) TO '${outputFile}' (FORMAT 'parquet')`
+          );
+
+          const buffer = await db.copyFileToBuffer(outputFile);
+          const blob = new Blob([buffer], { type: "application/octet-stream" });
+
+          const a = Object.assign(document.createElement("a"), {
+            href: URL.createObjectURL(blob),
+            download: outputFile,
+          });
+
+          document.body.appendChild(a).click();
+          document.body.removeChild(a);
+
+          statusDiv.innerHTML =
+            '<span class="success">✅ Parquetファイルを保存しました</span>';
+          setTimeout(() => {
+            statusDiv.innerHTML = "";
+          }, 3000);
+        } catch (error) {
+          statusDiv.innerHTML = `<span class="error">エラー: ${error.message}</span>`;
         }
       };
 
-      // サンプルデータ作成
-      window.createSampleData = async function () {
-        const resultDiv = document.getElementById("duckdbResult");
-        resultDiv.innerHTML = '<p class="loading">データ作成中...</p>';
+      window.exportToCSV = async function () {
+        const tableName = document.getElementById("exportTableSelect").value;
+        const statusDiv = document.getElementById("exportStatus");
+
+        if (!tableName) {
+          statusDiv.innerHTML =
+            '<span class="error">テーブルを選択してください</span>';
+          return;
+        }
+
+        try {
+          statusDiv.innerHTML =
+            '<span class="loading">CSVファイルを生成中...</span>';
+
+          const outputFile = `${tableName}.csv`;
+          await conn.query(
+            `COPY (SELECT * FROM ${tableName}) TO '${outputFile}' (FORMAT 'csv', HEADER)`
+          );
+
+          const buffer = await db.copyFileToBuffer(outputFile);
+          const blob = new Blob([buffer], { type: "text/csv" });
+
+          const a = Object.assign(document.createElement("a"), {
+            href: URL.createObjectURL(blob),
+            download: outputFile,
+          });
+
+          document.body.appendChild(a).click();
+          document.body.removeChild(a);
+
+          statusDiv.innerHTML =
+            '<span class="success">✅ CSVファイルを保存しました</span>';
+          setTimeout(() => {
+            statusDiv.innerHTML = "";
+          }, 3000);
+        } catch (error) {
+          statusDiv.innerHTML = `<span class="error">エラー: ${error.message}</span>`;
+        }
+      };
+
+      window.exportQueryResult = async function () {
+        if (!lastQueryResult) {
+          alert("まずクエリを実行してください");
+          return;
+        }
+
+        try {
+          const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+          const outputFile = `query_result_${timestamp}.csv`;
+
+          await conn.query(
+            "CREATE TEMP TABLE temp_export AS " +
+              document.getElementById("sqlQuery").value
+          );
+          await conn.query(
+            `COPY temp_export TO '${outputFile}' (FORMAT 'csv', HEADER)`
+          );
+
+          const buffer = await db.copyFileToBuffer(outputFile);
+          const blob = new Blob([buffer], { type: "text/csv" });
+
+          const a = Object.assign(document.createElement("a"), {
+            href: URL.createObjectURL(blob),
+            download: outputFile,
+          });
+
+          document.body.appendChild(a).click();
+          document.body.removeChild(a);
+
+          await conn.query("DROP TABLE temp_export");
+        } catch (error) {
+          alert(`エクスポートエラー: ${error.message}`);
+        }
+      };
+
+      window.saveApiKey = function () {
+        const key = document.getElementById("apiKey").value.trim();
+        const statusSpan = document.getElementById("apiKeyStatus");
+
+        if (key) {
+          apiKey = key;
+          localStorage.setItem("gemini_api_key", key);
+          statusSpan.innerHTML = '<span class="success"> ✅ 保存済み</span>';
+          setTimeout(() => {
+            statusSpan.innerHTML = "";
+          }, 3000);
+        } else {
+          statusSpan.innerHTML =
+            '<span class="error"> ❌ キーを入力してください</span>';
+        }
+      };
+
+      window.switchTab = function (tabName) {
+        document.querySelectorAll(".tab").forEach((t) => {
+          t.classList.remove("active");
+        });
+        document.querySelectorAll(".tab-content").forEach((c) => {
+          c.classList.remove("active");
+        });
+
+        event.target.classList.add("active");
+        document.getElementById(tabName).classList.add("active");
+
+        if (tabName === "tables") {
+          refreshTableList();
+        }
+      };
+
+      window.addEventListener("DOMContentLoaded", async () => {
+        const savedKey = localStorage.getItem("gemini_api_key");
+        if (savedKey) {
+          apiKey = savedKey;
+          document.getElementById("apiKey").value = savedKey;
+        }
 
         try {
           await initDuckDB();
+        } catch (error) {
+          console.error("Failed to initialize DuckDB:", error);
+        }
+      });
 
-          await conn.query(`
-                    CREATE OR REPLACE TABLE products (
-                        id INTEGER,
-                        name VARCHAR,
-                        category VARCHAR,
-                        price DECIMAL(10,2),
-                        stock INTEGER
-                    )
-                `);
+      const dropZone = document.getElementById("dropZone");
+      const fileInput = document.getElementById("fileInput");
 
-          await conn.query(`
-                    INSERT INTO products VALUES
-                    (1, 'ノートPC', 'Electronics', 89900, 15),
-                    (2, 'キーボード', 'Electronics', 5980, 42),
-                    (3, 'マウス', 'Electronics', 2980, 67),
-                    (4, 'デスク', 'Furniture', 24900, 8),
-                    (5, 'チェア', 'Furniture', 34900, 12),
-                    (6, 'モニター', 'Electronics', 29900, 23),
-                    (7, '本棚', 'Furniture', 12900, 18),
-                    (8, 'ヘッドホン', 'Electronics', 15900, 31)
-                `);
+      dropZone.addEventListener("click", () => fileInput.click());
 
-          const result = await conn.query("SELECT * FROM products");
-          displayTable(result, resultDiv);
+      dropZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropZone.classList.add("drag-over");
+      });
+
+      dropZone.addEventListener("dragleave", () => {
+        dropZone.classList.remove("drag-over");
+      });
+
+      dropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropZone.classList.remove("drag-over");
+        handleFiles(e.dataTransfer.files);
+      });
+
+      fileInput.addEventListener("change", (e) => {
+        handleFiles(e.target.files);
+      });
+
+      async function handleFiles(files) {
+        const resultDiv = document.getElementById("loadResult");
+        const fileListDiv = document.getElementById("fileList");
+
+        resultDiv.innerHTML = '<p class="loading">ファイル読み込み中...</p>';
+        fileListDiv.style.display = "block";
+        fileListDiv.innerHTML = "";
+
+        try {
+          if (!db || !conn) {
+            await initDuckDB();
+          }
+
+          let successCount = 0;
+          let errorCount = 0;
+
+          for (const file of files) {
+            const fileName = file.name;
+            const fileExt = fileName.split(".").pop().toLowerCase();
+
+            if (!["csv", "parquet"].includes(fileExt)) {
+              fileListDiv.innerHTML += `<div class="file-item" style="border-color: #d9534f;">❌ ${fileName}: 非対応形式</div>`;
+              errorCount++;
+              continue;
+            }
+
+            try {
+              console.log(`Loading file: ${fileName}`);
+
+              const tableName = fileName
+                .replace(/\.[^/.]+$/, "")
+                .replace(/[^a-zA-Z0-9_]/g, "_")
+                .toLowerCase();
+
+              if (fileExt === "csv") {
+                const csvData = await file.text();
+                await db.registerFileText(fileName, csvData);
+                await conn.query(
+                  `CREATE OR REPLACE TABLE ${tableName} AS 
+                   SELECT * FROM read_csv_auto('${fileName}', header=true, auto_detect=true)`
+                );
+              } else if (fileExt === "parquet") {
+                const arrayBuffer = await file.arrayBuffer();
+                const uint8Array = new Uint8Array(arrayBuffer);
+
+                await db.registerFileBuffer(fileName, uint8Array);
+
+                await conn.query(
+                  `CREATE OR REPLACE TABLE ${tableName} AS 
+                   SELECT * FROM '${fileName}'`
+                );
+              }
+
+              const countResult = await conn.query(
+                `SELECT COUNT(*) as count FROM ${tableName}`
+              );
+              const recordCount = Number(countResult.toArray()[0].count);
+
+              loadedFiles.add(tableName);
+
+              fileListDiv.innerHTML += `
+                <div class="file-item">
+                  <span>✅ ${fileName} → <strong>${tableName}</strong> (${recordCount}件)</span>
+                  <div>
+                    <button onclick="quickExport('${tableName}', 'parquet')" class="small export">Parquet</button>
+                    <button onclick="quickExport('${tableName}', 'csv')" class="small export">CSV</button>
+                  </div>
+                </div>`;
+              successCount++;
+            } catch (innerError) {
+              console.error(`Error loading ${fileName}:`, innerError);
+              fileListDiv.innerHTML += `<div class="file-item" style="border-color: #d9534f;">❌ ${fileName}: ${innerError.message}</div>`;
+              errorCount++;
+            }
+          }
+
+          let summaryMessage = "";
+          if (successCount > 0 && errorCount === 0) {
+            summaryMessage = `<p class="success">✅ 全${successCount}ファイルの読み込みに成功しました</p>`;
+          } else if (successCount > 0 && errorCount > 0) {
+            summaryMessage = `<p class="info">⚠️ ${successCount}ファイル成功、${errorCount}ファイル失敗</p>`;
+          } else {
+            summaryMessage = `<p class="error">❌ ファイルの読み込みに失敗しました</p>`;
+          }
+
+          resultDiv.innerHTML = summaryMessage;
+          updateTableSelectors();
         } catch (error) {
           resultDiv.innerHTML = `<p style="color:red;">エラー: ${error.message}</p>`;
-          console.error(error);
+          console.error("File handling error:", error);
+        }
+      }
+
+      window.quickExport = async function (tableName, format) {
+        try {
+          const outputFile = `${tableName}.${format}`;
+
+          if (format === "parquet") {
+            await conn.query(
+              `COPY (SELECT * FROM ${tableName}) TO '${outputFile}' (FORMAT 'parquet')`
+            );
+          } else {
+            await conn.query(
+              `COPY (SELECT * FROM ${tableName}) TO '${outputFile}' (FORMAT 'csv', HEADER)`
+            );
+          }
+
+          const buffer = await db.copyFileToBuffer(outputFile);
+          const blob = new Blob([buffer], {
+            type:
+              format === "parquet" ? "application/octet-stream" : "text/csv",
+          });
+
+          const a = Object.assign(document.createElement("a"), {
+            href: URL.createObjectURL(blob),
+            download: outputFile,
+          });
+
+          document.body.appendChild(a).click();
+          document.body.removeChild(a);
+        } catch (error) {
+          alert(`エクスポートエラー: ${error.message}`);
         }
       };
 
-      // SQLクエリ実行
+      async function updateTableSelectors() {
+        try {
+          const result = await conn.query("SHOW TABLES");
+          const tables = result.toArray();
+
+          const selectors = ["analysisTableSelect", "exportTableSelect"];
+
+          selectors.forEach((selectorId) => {
+            const select = document.getElementById(selectorId);
+            if (!select) return;
+
+            const currentValue = select.value;
+            select.innerHTML = '<option value="">テーブルを選択...</option>';
+
+            tables.forEach((row) => {
+              const tableName = row.name;
+              const option = document.createElement("option");
+              option.value = tableName;
+              option.textContent = tableName;
+              if (tableName === currentValue) {
+                option.selected = true;
+              }
+              select.appendChild(option);
+            });
+          });
+        } catch (error) {
+          console.error("Error updating table selectors:", error);
+        }
+      }
+
+      window.loadTableAnalysis = async function () {
+        const tableName = document.getElementById("analysisTableSelect").value;
+        const contentDiv = document.getElementById("analysisContent");
+
+        if (!tableName) {
+          contentDiv.innerHTML = "<p>テーブルを選択してください</p>";
+          return;
+        }
+
+        contentDiv.innerHTML = '<p class="loading">分析中...</p>';
+
+        try {
+          const countResult = await conn.query(
+            `SELECT COUNT(*) as count FROM ${tableName}`
+          );
+          const rowCount = Number(countResult.toArray()[0].count);
+
+          const schemaResult = await conn.query(`DESCRIBE ${tableName}`);
+          const columns = schemaResult.toArray();
+
+          // 基本統計
+          let html = `<div class="stat-grid">`;
+          html += `<div class="stat-card"><h4>総行数</h4><div class="value">${rowCount.toLocaleString()}</div></div>`;
+          html += `<div class="stat-card"><h4>総列数</h4><div class="value">${columns.length}</div></div>`;
+          html += `</div>`;
+
+          // 列分析テーブル
+          html += `<h3 style="margin-top: 25px; margin-bottom: 15px;">列詳細分析</h3>`;
+          html += `<div style="overflow-x: auto;">`;
+          html += `<table style="width: 100%; min-width: 1400px;">`;
+          html += `<thead><tr>`;
+          html += `<th style="width: 10%;">列名</th>`;
+          html += `<th style="width: 7%;">データ型</th>`;
+          html += `<th style="width: 6%;">行数</th>`;
+          html += `<th style="width: 6%;">NULL数</th>`;
+          html += `<th style="width: 6%;">NULL率</th>`;
+          html += `<th style="width: 6%;">空文字数</th>`;
+          html += `<th style="width: 6%;">NA数</th>`;
+          html += `<th style="width: 7%;">ユニーク値</th>`;
+          html += `<th style="width: 7%;">最小値</th>`;
+          html += `<th style="width: 7%;">最大値</th>`;
+          html += `<th style="width: 7%;">平均値</th>`;
+          html += `<th style="width: 7%;">標準偏差</th>`;
+          html += `<th style="width: 14%;">その他統計</th>`;
+          html += `</tr></thead>`;
+          html += `<tbody>`;
+
+          for (const col of columns) {
+            const colName = col.column_name;
+            const colType = col.column_type;
+
+            // NULL値の統計
+            const nullCountResult = await conn.query(
+              `SELECT COUNT(*) as null_count FROM ${tableName} WHERE "${colName}" IS NULL`
+            );
+            const nullCount = Number(nullCountResult.toArray()[0].null_count);
+            const nullPercent =
+              rowCount > 0 ? ((nullCount / rowCount) * 100).toFixed(1) : "0";
+
+            // 空文字の統計
+            let emptyStringCount = 0;
+            if (
+              colType.includes("VARCHAR") ||
+              colType.includes("TEXT") ||
+              colType.includes("STRING")
+            ) {
+              try {
+                const emptyResult = await conn.query(
+                  `SELECT COUNT(*) as empty_count FROM ${tableName} WHERE "${colName}" = ''`
+                );
+                emptyStringCount = Number(emptyResult.toArray()[0].empty_count);
+              } catch (e) {
+                console.error(
+                  `Error counting empty strings for ${colName}:`,
+                  e
+                );
+              }
+            }
+
+            // NA値の統計
+            let naCount = 0;
+            try {
+              const naResult = await conn.query(
+                `SELECT COUNT(*) as na_count FROM ${tableName} WHERE UPPER(CAST("${colName}" AS VARCHAR)) IN ('NA', 'N/A')`
+              );
+              naCount = Number(naResult.toArray()[0].na_count);
+            } catch (e) {
+              console.error(`Error counting NA values for ${colName}:`, e);
+            }
+
+            // ユニーク値の数
+            const uniqueResult = await conn.query(
+              `SELECT COUNT(DISTINCT "${colName}") as unique_count FROM ${tableName}`
+            );
+            const uniqueCount = Number(uniqueResult.toArray()[0].unique_count);
+
+            // 行の開始
+            html += `<tr>`;
+            html += `<td><strong>${colName}</strong></td>`;
+            html += `<td style="font-size: 11px;">${colType}</td>`;
+            html += `<td>${rowCount.toLocaleString()}</td>`;
+            html += `<td>${nullCount.toLocaleString()}</td>`;
+            html += `<td>${nullPercent}%</td>`;
+            html += `<td>${emptyStringCount.toLocaleString()}</td>`;
+            html += `<td>${naCount.toLocaleString()}</td>`;
+            html += `<td>${uniqueCount.toLocaleString()}</td>`;
+
+            // データ型に応じた統計情報（最小値、最大値、平均値、標準偏差、その他）
+            let minVal = "-";
+            let maxVal = "-";
+            let avgVal = "-";
+            let stdVal = "-";
+            let otherStats = "-";
+
+            if (
+              colType.includes("VARCHAR") ||
+              colType.includes("TEXT") ||
+              colType.includes("STRING")
+            ) {
+              // 文字列型
+              try {
+                const lengthResult = await conn.query(
+                  `SELECT 
+                    MIN(LENGTH("${colName}")) as min_len,
+                    MAX(LENGTH("${colName}")) as max_len,
+                    ROUND(AVG(LENGTH("${colName}"))) as avg_len
+                  FROM ${tableName} WHERE "${colName}" IS NOT NULL`
+                );
+                const lenStats = lengthResult.toArray()[0];
+
+                minVal = `${lenStats?.min_len || 0}文字`;
+                maxVal = `${lenStats?.max_len || 0}文字`;
+                avgVal = `${lenStats?.avg_len || 0}文字`;
+
+                const whitespaceResult = await conn.query(
+                  `SELECT COUNT(*) as ws_count FROM ${tableName} WHERE "${colName}" != TRIM("${colName}")`
+                );
+                const whitespaceCount = Number(
+                  whitespaceResult.toArray()[0].ws_count
+                );
+
+                if (whitespaceCount > 0) {
+                  otherStats = `空白あり: ${whitespaceCount}件`;
+                }
+              } catch (e) {
+                otherStats = "統計取得不可";
+              }
+            } else if (
+              colType.includes("INTEGER") ||
+              colType.includes("DOUBLE") ||
+              colType.includes("DECIMAL") ||
+              colType.includes("FLOAT") ||
+              colType.includes("BIGINT") ||
+              colType.includes("NUMERIC")
+            ) {
+              // 数値型
+              try {
+                const statsResult = await conn.query(
+                  `SELECT 
+                    CAST(MIN("${colName}") AS DOUBLE) as min_val,
+                    CAST(MAX("${colName}") AS DOUBLE) as max_val,
+                    ROUND(CAST(AVG("${colName}") AS DOUBLE), 2) as avg_val,
+                    ROUND(CAST(STDDEV("${colName}") AS DOUBLE), 2) as std_val
+                  FROM ${tableName} WHERE "${colName}" IS NOT NULL`
+                );
+                const stats = statsResult.toArray()[0];
+
+                if (stats && stats.min_val !== null) {
+                  minVal = stats.min_val;
+                  maxVal = stats.max_val;
+                  avgVal = stats.avg_val;
+                  stdVal = stats.std_val !== null ? stats.std_val : "-";
+                }
+              } catch (e) {
+                otherStats = "統計取得不可";
+              }
+            } else if (
+              colType.includes("DATE") ||
+              colType.includes("TIMESTAMP")
+            ) {
+              // 日付型
+              try {
+                const dateResult = await conn.query(
+                  `SELECT 
+                    MIN("${colName}") as min_date,
+                    MAX("${colName}") as max_date,
+                    COUNT(DISTINCT DATE("${colName}")) as unique_dates
+                  FROM ${tableName} WHERE "${colName}" IS NOT NULL`
+                );
+                const dateStats = dateResult.toArray()[0];
+
+                if (dateStats && dateStats.min_date) {
+                  minVal = dateStats.min_date;
+                  maxVal = dateStats.max_date;
+                  otherStats = `ユニーク日数: ${dateStats.unique_dates}`;
+                }
+              } catch (e) {
+                otherStats = "統計取得不可";
+              }
+            } else if (colType.includes("BOOLEAN")) {
+              // ブール型
+              try {
+                const boolResult = await conn.query(
+                  `SELECT 
+                    COUNT(CASE WHEN "${colName}" = true THEN 1 END) as true_count,
+                    COUNT(CASE WHEN "${colName}" = false THEN 1 END) as false_count
+                  FROM ${tableName}`
+                );
+                const boolStats = boolResult.toArray()[0];
+                const trueCount = Number(boolStats.true_count);
+                const falseCount = Number(boolStats.false_count);
+
+                otherStats = `TRUE: ${trueCount} (${(
+                  (trueCount / rowCount) *
+                  100
+                ).toFixed(1)}%), FALSE: ${falseCount} (${(
+                  (falseCount / rowCount) *
+                  100
+                ).toFixed(1)}%)`;
+              } catch (e) {
+                otherStats = "統計取得不可";
+              }
+            }
+
+            html += `<td>${minVal}</td>`;
+            html += `<td>${maxVal}</td>`;
+            html += `<td>${avgVal}</td>`;
+            html += `<td>${stdVal}</td>`;
+            html += `<td style="font-size: 11px;">${otherStats}</td>`;
+            html += `</tr>`;
+          }
+
+          html += `</tbody>`;
+          html += `</table>`;
+          html += `</div>`;
+
+          // サンプルデータの表示
+          html += `<h3 style="margin-top: 30px; margin-bottom: 15px;">サンプルデータ</h3>`;
+          html += `<div style="overflow-x: auto;">`;
+
+          try {
+            const sampleResult = await conn.query(
+              `SELECT * FROM ${tableName} LIMIT 100`
+            );
+            const sampleData = sampleResult.toArray();
+
+            if (sampleData.length > 0) {
+              const sampleColumns = Object.keys(sampleData[0]);
+              html += `<table style="width: 100%;">`;
+              html += `<thead><tr>`;
+              sampleColumns.forEach((col) => {
+                html += `<th>${col}</th>`;
+              });
+              html += `</tr></thead><tbody>`;
+
+              sampleData.forEach((row) => {
+                html += `<tr>`;
+                sampleColumns.forEach((col) => {
+                  let value = row[col];
+                  if (value === null) {
+                    value =
+                      '<span style="color: #999; font-style: italic;">NULL</span>';
+                  } else if (typeof value === "bigint") {
+                    value = value.toString();
+                  } else if (value instanceof Date) {
+                    value = value.toISOString();
+                  }
+                  html += `<td>${value}</td>`;
+                });
+                html += `</tr>`;
+              });
+
+              html += `</tbody></table>`;
+            }
+          } catch (e) {
+            html += `<p style="color: #999;">サンプルデータを取得できませんでした</p>`;
+          }
+
+          html += `</div>`;
+
+          contentDiv.innerHTML = html;
+        } catch (error) {
+          contentDiv.innerHTML = `<p style="color:red;">エラー: ${error.message}</p>`;
+          console.error("Table analysis error:", error);
+        }
+      };
+
+      window.loadOverview = window.loadTableAnalysis;
+      window.loadDetailedAnalysis = window.loadTableAnalysis;
+
       window.executeQuery = async function () {
-        const query = document.getElementById("sqlQuery").value;
+        const query = document.getElementById("sqlQuery").value.trim();
+        if (!query) {
+          alert("クエリを入力してください");
+          return;
+        }
+
         const resultDiv = document.getElementById("queryResult");
         resultDiv.innerHTML = '<p class="loading">クエリ実行中...</p>';
 
         try {
-          await initDuckDB();
+          if (!db || !conn) {
+            await initDuckDB();
+          }
+
+          console.log("Executing query:", query);
           const result = await conn.query(query);
+          lastQueryResult = result;
           displayTable(result, resultDiv);
         } catch (error) {
           resultDiv.innerHTML = `<p style="color:red;">エラー: ${error.message}</p>`;
         }
       };
 
-      // テーブル表示
       function displayTable(result, container) {
-        const rows = result.toArray();
-        if (rows.length === 0) {
-          container.innerHTML = "<p>データがありません</p>";
-          return;
-        }
+        try {
+          let rows;
+          if (result.schema && result.batches) {
+            rows = arrowResultToObjectArray(result);
+          } else {
+            rows = result.toArray();
+          }
 
-        const columns = Object.keys(rows[0]);
-        let html = "<table><thead><tr>";
-        columns.forEach((col) => {
-          html += `<th>${col}</th>`;
-        });
-        html += "</tr></thead><tbody>";
+          if (rows.length === 0) {
+            container.innerHTML = "<p>データがありません</p>";
+            return;
+          }
 
-        rows.forEach((row) => {
-          html += "<tr>";
+          const columns = Object.keys(rows[0]);
+          let html = `<p class="info">取得件数: ${rows.length}件</p>`;
+          html += "<table><thead><tr>";
           columns.forEach((col) => {
-            html += `<td>${row[col]}</td>`;
+            html += `<th>${col}</th>`;
           });
-          html += "</tr>";
-        });
+          html += "</tr></thead><tbody>";
 
-        html += "</tbody></table>";
-        container.innerHTML = html;
+          const displayRows = rows.slice(0, 100);
+          displayRows.forEach((row) => {
+            html += "<tr>";
+            columns.forEach((col) => {
+              html += `<td>${row[col]}</td>`;
+            });
+            html += "</tr>";
+          });
+
+          html += "</tbody></table>";
+
+          if (rows.length > 100) {
+            html += `<p style="color: #666; font-size: 12px; margin-top: 10px;">（全${rows.length}件中、最初の100件を表示）</p>`;
+          }
+
+          container.innerHTML = html;
+        } catch (error) {
+          container.innerHTML = `<p style="color:red;">表示エラー: ${error.message}</p>`;
+        }
       }
 
-      // Gemini APIを呼び出す
+      function arrowResultToObjectArray(arrowTable) {
+        if (!arrowTable.batches || arrowTable.batches.length === 0) return [];
+
+        const colNames = arrowTable.schema.fields.map((f) => f.name);
+        const rows = [];
+
+        for (let b = 0; b < arrowTable.batches.length; b++) {
+          const batch = arrowTable.batches[b];
+          const numRows =
+            batch.length || batch.numRows || (batch.getChildAt(0)?.length ?? 0);
+
+          for (let rowIndex = 0; rowIndex < numRows; rowIndex++) {
+            const rowObj = {};
+            for (let colIndex = 0; colIndex < batch.numCols; colIndex++) {
+              const colName = colNames[colIndex];
+              const colVector = batch.getChildAt(colIndex);
+              rowObj[colName] = colVector.get(rowIndex);
+            }
+            rows.push(rowObj);
+          }
+        }
+        return rows;
+      }
+
       async function callGemini(prompt) {
         if (!apiKey) {
           throw new Error("APIキーが設定されていません");
         }
 
         const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
           {
             method: "POST",
             headers: {
@@ -304,6 +1226,10 @@
                   ],
                 },
               ],
+              generationConfig: {
+                temperature: 0.7,
+                maxOutputTokens: 1000,
+              },
             }),
           }
         );
@@ -317,51 +1243,134 @@
         return data.candidates[0].content.parts[0].text;
       }
 
-      // Geminiでデータ分析
-      window.analyzeWithGemini = async function () {
-        const resultDiv = document.getElementById("geminiResult");
-        resultDiv.innerHTML = '<p class="loading">Gemini分析中...</p>';
-
-        try {
-          const prompt =
-            "DuckDBとWebAssemblyを使ったブラウザ内データ分析の利点を3つ、簡潔に説明してください。";
-          const response = await callGemini(prompt);
-          resultDiv.innerHTML = response;
-        } catch (error) {
-          resultDiv.innerHTML = `<p style="color:red;">エラー: ${error.message}</p>`;
+      function convertDuckDBData(data) {
+        if (Array.isArray(data)) {
+          return data.map((row) => convertDuckDBData(row));
+        } else if (data && typeof data === "object") {
+          const converted = {};
+          for (const [key, value] of Object.entries(data)) {
+            converted[key] = convertDuckDBData(value);
+          }
+          return converted;
+        } else if (typeof data === "bigint") {
+          return data.toString();
+        } else if (data instanceof Date) {
+          return data.toISOString();
+        } else if (
+          data &&
+          data.constructor &&
+          data.constructor.name === "Decimal"
+        ) {
+          return data.toString();
         }
-      };
+        return data;
+      }
 
-      // SQLデータをGeminiで分析
+      function bigIntReplacer(key, value) {
+        if (typeof value === "bigint") {
+          return value.toString();
+        }
+        return value;
+      }
+
       window.analyzeSQLWithGemini = async function () {
+        const query = document.getElementById("analysisQuery").value;
         const resultDiv = document.getElementById("integrationResult");
         resultDiv.innerHTML = '<p class="loading">データ取得中...</p>';
 
         try {
-          await initDuckDB();
+          if (!db || !conn) {
+            await initDuckDB();
+          }
 
-          const result = await conn.query(
-            "SELECT * FROM products ORDER BY price DESC"
-          );
-          const data = result.toArray();
+          const result = await conn.query(query);
+          const rawData = result.toArray();
+
+          if (rawData.length === 0) {
+            resultDiv.innerHTML = "<p>クエリ結果が空です</p>";
+            return;
+          }
+
+          const data = convertDuckDBData(rawData);
 
           resultDiv.innerHTML = '<p class="loading">Geminiで分析中...</p>';
 
-          const prompt = `以下の商品データを分析して、在庫管理と販売戦略について3つの重要な洞察を提供してください:\n\n${JSON.stringify(
-            data,
-            null,
-            2
-          )}`;
+          const sampleData = data.length > 50 ? data.slice(0, 50) : data;
+          const isSampled = data.length > 50;
+
+          const prompt = `以下のデータを分析して、重要な洞察を3つ提供してください。
+          ${
+            isSampled
+              ? `（注：全${data.length}件中の最初の50件のサンプル）`
+              : ""
+          }
+          
+          データ:\n${JSON.stringify(sampleData, null, 2)}
+          
+          回答は日本語で、簡潔にお願いします。`;
+
           const analysis = await callGemini(prompt);
 
           resultDiv.innerHTML = `
-                    <h4>📊 取得データ (${data.length}件)</h4>
-                    <pre>${JSON.stringify(data, null, 2)}</pre>
-                    <h4>🤖 Geminiの分析結果</h4>
-                    <div>${analysis}</div>
-                `;
+            <h4>📊 取得データ (${data.length}件${
+            isSampled ? " - サンプル表示" : ""
+          })</h4>
+            <pre>${JSON.stringify(sampleData, null, 2)}</pre>
+            <h4>🤖 Geminiの分析結果</h4>
+            <div>${analysis.replace(/\n/g, "<br>")}</div>
+          `;
         } catch (error) {
           resultDiv.innerHTML = `<p style="color:red;">エラー: ${error.message}</p>`;
+          console.error("Analysis error:", error);
+        }
+      };
+
+      window.refreshTableList = async function () {
+        const contentDiv = document.getElementById("tableListContent");
+        contentDiv.innerHTML = '<p class="loading">読み込み中...</p>';
+
+        try {
+          if (!db || !conn) {
+            await initDuckDB();
+          }
+
+          const result = await conn.query("SHOW TABLES");
+          const tables = result.toArray();
+
+          if (tables.length === 0) {
+            contentDiv.innerHTML =
+              "<p>テーブルがありません。ファイルを読み込んでください。</p>";
+            return;
+          }
+
+          let html = `<div class="stat-grid">`;
+
+          for (const table of tables) {
+            const tableName = table.name;
+
+            const countResult = await conn.query(
+              `SELECT COUNT(*) as count FROM ${tableName}`
+            );
+            const rowCount = Number(countResult.toArray()[0].count);
+
+            const schemaResult = await conn.query(`DESCRIBE ${tableName}`);
+            const colCount = schemaResult.toArray().length;
+
+            html += `<div class="stat-card">`;
+            html += `<h4>${tableName}</h4>`;
+            html += `<div class="column-detail">${rowCount.toLocaleString()} 行 × ${colCount} 列</div>`;
+            html += `<div style="margin-top: 10px;">`;
+            html += `<button onclick="quickExport('${tableName}', 'parquet')" class="small export">Parquet</button>`;
+            html += `<button onclick="quickExport('${tableName}', 'csv')" class="small export">CSV</button>`;
+            html += `</div>`;
+            html += `</div>`;
+          }
+
+          html += `</div>`;
+          contentDiv.innerHTML = html;
+        } catch (error) {
+          contentDiv.innerHTML = `<p style="color:red;">エラー: ${error.message}</p>`;
+          console.error("Table list error:", error);
         }
       };
     </script>
