@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gemini Flash + DuckDB-Wasm デモ</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 30px auto;
+        padding: 20px;
+        background: #f5f5f5;
+        color: #333;
+      }
+      .container {
+        background: white;
+        padding: 20px;
+        border: 1px solid #ddd;
+      }
+      h1 {
+        color: #333;
+        margin-bottom: 20px;
+        font-size: 24px;
+      }
+      .section {
+        margin: 20px 0;
+        padding: 15px;
+        background: #fafafa;
+        border: 1px solid #e0e0e0;
+      }
+      h3 {
+        margin-top: 0;
+        font-size: 16px;
+        color: #555;
+      }
+      button {
+        background: #555;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        cursor: pointer;
+        font-size: 14px;
+        margin: 5px 5px 5px 0;
+      }
+      button:hover {
+        background: #333;
+      }
+      button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+      input[type="text"],
+      input[type="password"] {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ccc;
+        font-size: 14px;
+        margin: 8px 0;
+        box-sizing: border-box;
+      }
+      input[type="text"]:focus,
+      input[type="password"]:focus {
+        outline: none;
+        border-color: #555;
+      }
+      .result {
+        background: white;
+        padding: 10px;
+        margin-top: 10px;
+        white-space: pre-wrap;
+        font-family: monospace;
+        font-size: 13px;
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+      }
+      .loading {
+        color: #666;
+        font-style: italic;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
+      th,
+      td {
+        padding: 8px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+      }
+      th {
+        background: #555;
+        color: white;
+        font-weight: normal;
+      }
+      tr:hover {
+        background: #f9f9f9;
+      }
+      .warning {
+        background: #fffbf0;
+        padding: 12px;
+        margin: 15px 0;
+        border-left: 3px solid #f90;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Gemini Flash + DuckDB-Wasm</h1>
+
+      <div class="warning">
+        <strong>APIキーが必要:</strong>
+        <a href="https://aistudio.google.com/app/apikey" target="_blank"
+          >Google AI Studio</a
+        >
+        でGemini APIキーを取得してください
+      </div>
+
+      <div class="section">
+        <h3>1. Gemini APIキー設定</h3>
+        <input type="password" id="apiKey" placeholder="APIキーを入力" />
+        <button onclick="saveApiKey()">保存</button>
+      </div>
+
+      <div class="section">
+        <h3>2. DuckDB: サンプルデータ作成</h3>
+        <button onclick="createSampleData()">データ作成</button>
+        <div id="duckdbResult" class="result"></div>
+      </div>
+
+      <div class="section">
+        <h3>3. DuckDB: SQLクエリ実行</h3>
+        <input
+          type="text"
+          id="sqlQuery"
+          placeholder="SELECT * FROM products"
+          value="SELECT * FROM products"
+        />
+        <button onclick="executeQuery()">実行</button>
+        <div id="queryResult" class="result"></div>
+      </div>
+
+      <div class="section">
+        <h3>4. Gemini: データ分析</h3>
+        <button onclick="analyzeWithGemini()">分析実行</button>
+        <div id="geminiResult" class="result"></div>
+      </div>
+
+      <div class="section">
+        <h3>5. 統合: SQLデータをGeminiで要約</h3>
+        <button onclick="analyzeSQLWithGemini()">データ取得→AI分析</button>
+        <div id="integrationResult" class="result"></div>
+      </div>
+    </div>
+
+    <script type="module">
+      import * as duckdb from "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.0/+esm";
+
+      let db;
+      let conn;
+      let apiKey = "";
+
+      // DuckDB初期化（修正版）
+      async function initDuckDB() {
+        if (db) return;
+
+        try {
+          const JSDELIVR_BUNDLES = duckdb.getJsDelivrBundles();
+          const bundle = await duckdb.selectBundle(JSDELIVR_BUNDLES);
+
+          const worker_url = URL.createObjectURL(
+            new Blob([`importScripts("${bundle.mainWorker}");`], {
+              type: "text/javascript",
+            })
+          );
+
+          const worker = new Worker(worker_url);
+          const logger = new duckdb.ConsoleLogger();
+          db = new duckdb.AsyncDuckDB(logger, worker);
+          await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+          conn = await db.connect();
+
+          console.log("DuckDB初期化完了");
+        } catch (error) {
+          console.error("DuckDB初期化エラー:", error);
+          throw error;
+        }
+      }
+
+      // APIキー保存
+      window.saveApiKey = function () {
+        const key = document.getElementById("apiKey").value.trim();
+        if (key) {
+          apiKey = key;
+          alert("APIキーを保存しました!");
+        } else {
+          alert("APIキーを入力してください");
+        }
+      };
+
+      // サンプルデータ作成
+      window.createSampleData = async function () {
+        const resultDiv = document.getElementById("duckdbResult");
+        resultDiv.innerHTML = '<p class="loading">データ作成中...</p>';
+
+        try {
+          await initDuckDB();
+
+          await conn.query(`
+                    CREATE OR REPLACE TABLE products (
+                        id INTEGER,
+                        name VARCHAR,
+                        category VARCHAR,
+                        price DECIMAL(10,2),
+                        stock INTEGER
+                    )
+                `);
+
+          await conn.query(`
+                    INSERT INTO products VALUES
+                    (1, 'ノートPC', 'Electronics', 89900, 15),
+                    (2, 'キーボード', 'Electronics', 5980, 42),
+                    (3, 'マウス', 'Electronics', 2980, 67),
+                    (4, 'デスク', 'Furniture', 24900, 8),
+                    (5, 'チェア', 'Furniture', 34900, 12),
+                    (6, 'モニター', 'Electronics', 29900, 23),
+                    (7, '本棚', 'Furniture', 12900, 18),
+                    (8, 'ヘッドホン', 'Electronics', 15900, 31)
+                `);
+
+          const result = await conn.query("SELECT * FROM products");
+          displayTable(result, resultDiv);
+        } catch (error) {
+          resultDiv.innerHTML = `<p style="color:red;">エラー: ${error.message}</p>`;
+          console.error(error);
+        }
+      };
+
+      // SQLクエリ実行
+      window.executeQuery = async function () {
+        const query = document.getElementById("sqlQuery").value;
+        const resultDiv = document.getElementById("queryResult");
+        resultDiv.innerHTML = '<p class="loading">クエリ実行中...</p>';
+
+        try {
+          await initDuckDB();
+          const result = await conn.query(query);
+          displayTable(result, resultDiv);
+        } catch (error) {
+          resultDiv.innerHTML = `<p style="color:red;">エラー: ${error.message}</p>`;
+        }
+      };
+
+      // テーブル表示
+      function displayTable(result, container) {
+        const rows = result.toArray();
+        if (rows.length === 0) {
+          container.innerHTML = "<p>データがありません</p>";
+          return;
+        }
+
+        const columns = Object.keys(rows[0]);
+        let html = "<table><thead><tr>";
+        columns.forEach((col) => {
+          html += `<th>${col}</th>`;
+        });
+        html += "</tr></thead><tbody>";
+
+        rows.forEach((row) => {
+          html += "<tr>";
+          columns.forEach((col) => {
+            html += `<td>${row[col]}</td>`;
+          });
+          html += "</tr>";
+        });
+
+        html += "</tbody></table>";
+        container.innerHTML = html;
+      }
+
+      // Gemini APIを呼び出す
+      async function callGemini(prompt) {
+        if (!apiKey) {
+          throw new Error("APIキーが設定されていません");
+        }
+
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              contents: [
+                {
+                  parts: [
+                    {
+                      text: prompt,
+                    },
+                  ],
+                },
+              ],
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error?.message || "API呼び出しエラー");
+        }
+
+        const data = await response.json();
+        return data.candidates[0].content.parts[0].text;
+      }
+
+      // Geminiでデータ分析
+      window.analyzeWithGemini = async function () {
+        const resultDiv = document.getElementById("geminiResult");
+        resultDiv.innerHTML = '<p class="loading">Gemini分析中...</p>';
+
+        try {
+          const prompt =
+            "DuckDBとWebAssemblyを使ったブラウザ内データ分析の利点を3つ、簡潔に説明してください。";
+          const response = await callGemini(prompt);
+          resultDiv.innerHTML = response;
+        } catch (error) {
+          resultDiv.innerHTML = `<p style="color:red;">エラー: ${error.message}</p>`;
+        }
+      };
+
+      // SQLデータをGeminiで分析
+      window.analyzeSQLWithGemini = async function () {
+        const resultDiv = document.getElementById("integrationResult");
+        resultDiv.innerHTML = '<p class="loading">データ取得中...</p>';
+
+        try {
+          await initDuckDB();
+
+          const result = await conn.query(
+            "SELECT * FROM products ORDER BY price DESC"
+          );
+          const data = result.toArray();
+
+          resultDiv.innerHTML = '<p class="loading">Geminiで分析中...</p>';
+
+          const prompt = `以下の商品データを分析して、在庫管理と販売戦略について3つの重要な洞察を提供してください:\n\n${JSON.stringify(
+            data,
+            null,
+            2
+          )}`;
+          const analysis = await callGemini(prompt);
+
+          resultDiv.innerHTML = `
+                    <h4>📊 取得データ (${data.length}件)</h4>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                    <h4>🤖 Geminiの分析結果</h4>
+                    <div>${analysis}</div>
+                `;
+        } catch (error) {
+          resultDiv.innerHTML = `<p style="color:red;">エラー: ${error.message}</p>`;
+        }
+      };
+    </script>
+  </body>
+</html>
